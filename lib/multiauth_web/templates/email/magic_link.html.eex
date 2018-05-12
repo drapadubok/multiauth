@@ -1,0 +1,1 @@
+Your login link for Overmind: <%= signin_url(MultiauthWeb.Endpoint, :callback, @token) %>
