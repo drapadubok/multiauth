@@ -69,12 +69,47 @@ mix ecto.migrate
 You will see that a few files got created. Our Auth context will be responsible for all things auth, and will include the User schema, Guardian module implementing the callbacks, several methods that will help with handling passwords and also (closer to the end of the tutorial) the Mailer module that will be responsible for getting the magic links for you. Right now it only has the schema and methods to manipulate the records in that schema, but we will get all the good stuff implemented in a moment.
 
 #### Guardian callbacks
-Guardian expects several callbacks defined for it, and since here we use version 1.0, there is a bit of difference from how it is usually defined in tutorials.
-[Callbacks](lib/multiauth/auth/guardian.ex)
+Guardian expects several callbacks defined for it, and since here we use version 1.0, there is a bit of difference from how it is usually defined in tutorials. I'm using the callbacks suggested in the readme of the library, and additional <b>delvier_magic_link</b> callback will be used for passwordless auth, and example is taken from https://github.com/promptworks/sans_password, which we will use for implementation.
+
+[Take a look at the callbacks here](lib/multiauth/auth/guardian.ex)
 
 #### Pipelines for router
-These pipelines will be used to get the token from user requests and ensure user is authenticated.
-[Pipeline](lib/multiauth/auth/pipeline.ex)
+These pipelines will be used to get the token from user requests and ensure user is authenticated. Again, we follow the examples in the readmes of the libs closely.
+
+[And here take a look at the pipeline](lib/multiauth/auth/pipeline.ex)
+
+Once we have the pipeline ready, we can add it to the <b>lib/multiauth_web/router.ex</b>.
+```
+# Use pipeline that we defined to get the token
+pipeline :auth do
+  plug Multiauth.Auth.Pipeline
+end
+
+# This plug provided by Guardian will ensure that token is valid
+pipeline :ensure_auth do
+  plug Guardian.Plug.EnsureAuthenticated
+end
+```
+
+#### Protected route
+To have a working example, we need a route that requires authentication.
+```
+# Scope which is accessible for everyone
+scope "/", MultiauthWeb do
+  pipe_through [:browser, :auth]
+
+  get "/", PageController, :index
+  post "/login", PageController, :login
+  post "/logout", PageController, :logout
+end
+# Protected scope
+scope "/", MultiauthWeb do
+  pipe_through [:browser, :auth, :ensure_auth]
+
+  get "/secret", PageController, :secret
+end
+```
+Now we will also need to implement the <b>login</b>, <b>logout</b> and <b>secret</b> functions in the controller.
 
 #### Login form
 Disclaimer: we will not implement signup form here, let's just populate the database with a single user via the seed migration, and figure out signing up once we have some more time.
